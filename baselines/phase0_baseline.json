@@ -1,0 +1,102 @@
+{
+  "cpu": {
+    "low": {
+      "case": "low",
+      "device": "cpu",
+      "n_reps": 1,
+      "times": [
+        13.11706783399859
+      ],
+      "median_time": 13.11706783399859,
+      "iterations": 1200,
+      "converged": false,
+      "total_ev": 3760723.2208734667,
+      "verifier_ok": true,
+      "n_clients": 100000,
+      "n_offers": 400000,
+      "wallclock_capture_s": 13.261570874994504
+    },
+    "med": {
+      "case": "med",
+      "device": "cpu",
+      "n_reps": 1,
+      "times": [
+        12.492032582988031
+      ],
+      "median_time": 12.492032582988031,
+      "iterations": 1200,
+      "converged": false,
+      "total_ev": 190066.7582197935,
+      "verifier_ok": true,
+      "n_clients": 49966,
+      "n_offers": 154659,
+      "wallclock_capture_s": 12.559333416997106
+    },
+    "hard": {
+      "case": "hard",
+      "device": "cpu",
+      "n_reps": 1,
+      "times": [
+        260.0194810840039
+      ],
+      "median_time": 260.0194810840039,
+      "iterations": 400,
+      "converged": false,
+      "total_ev": 1308276376.679656,
+      "verifier_ok": true,
+      "n_clients": 278346,
+      "n_offers": 5000000,
+      "wallclock_capture_s": 262.3446104589966
+    }
+  },
+  "mps": {
+    "low": {
+      "case": "low",
+      "device": "mps",
+      "n_reps": 1,
+      "times": [
+        5.091529166005785
+      ],
+      "median_time": 5.091529166005785,
+      "iterations": 1200,
+      "converged": false,
+      "total_ev": 3760723.2208734667,
+      "verifier_ok": true,
+      "n_clients": 100000,
+      "n_offers": 400000,
+      "wallclock_capture_s": 5.227240874999552
+    },
+    "med": {
+      "case": "med",
+      "device": "mps",
+      "n_reps": 1,
+      "times": [
+        24.794794749992434
+      ],
+      "median_time": 24.794794749992434,
+      "iterations": 1200,
+      "converged": false,
+      "total_ev": 190066.7582197935,
+      "verifier_ok": true,
+      "n_clients": 49966,
+      "n_offers": 154659,
+      "wallclock_capture_s": 24.856452125008218
+    },
+    "hard": {
+      "case": "hard",
+      "device": "mps",
+      "n_reps": 1,
+      "times": [
+        123.09016845800215
+      ],
+      "median_time": 123.09016845800215,
+      "iterations": 400,
+      "converged": false,
+      "total_ev": 1308276376.679656,
+      "verifier_ok": true,
+      "n_clients": 278346,
+      "n_offers": 5000000,
+      "wallclock_capture_s": 125.31684916699305
+    }
+  }
+}
