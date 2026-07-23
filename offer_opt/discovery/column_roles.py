@@ -79,35 +79,48 @@ def classify_columns(df: pd.DataFrame) -> dict[str, RoleGuess]:
     n = len(df)
     cardinalities = {col: df[col].nunique(dropna=False) for col in df.columns}
 
-    # subject_id: the highest-cardinality column that still *repeats*
-    # (1 < nunique < n) -- a real subject shows up in multiple option rows.
-    # Two refinements over "just pick the highest cardinality repeater":
-    #  1. Exclude continuous measurement columns first (see
+    # subject_id: ranked from a single unified candidate pool, not two
+    # mutually-exclusive "repeats" vs "fully unique" branches -- an earlier
+    # two-branch version could get pre-empted by a handful of continuous
+    # metric columns that happen to repeat by sheer decimal-rounding
+    # coincidence (nunique just below n), which took over the *entire*
+    # "repeating" tier and never even considered the fully-unique tier where
+    # the real (wide-shaped) subject id actually lived. Unified instead:
+    #  1. Exclude continuous-measurement columns first (see
     #     _is_continuous_measurement) -- a value component with high decimal
-    #     precision over many rows can have MORE distinct values than there
-    #     are actual subjects, and would otherwise win on raw cardinality.
-    #  2. Within what's left, prefer a repeat ratio (n / cardinality)
-    #     meaningfully above 1x, so a column that's "not literally every
-    #     value unique" only by a coincidental tie or two doesn't outrank a
-    #     real, structurally-repeating id.
-    # If nothing clears these bars, relax tier by tier, and finally fall
-    # back to a fully-unique column (one-row-per-subject data, e.g.
-    # already-reshaped wide data) that isn't a positional-index artifact.
-    MIN_REPEAT_RATIO = 1.5
-    repeaters = {c: card for c, card in cardinalities.items() if 1 < card < n}
-    id_like_repeaters = {c: card for c, card in repeaters.items() if not _is_continuous_measurement(df[c])}
-    strong_id_like = {c: card for c, card in id_like_repeaters.items() if n / card >= MIN_REPEAT_RATIO}
-    strong_any = {c: card for c, card in repeaters.items() if n / card >= MIN_REPEAT_RATIO}
+    #     precision can have a cardinality suspiciously close to (or exactly)
+    #     the real subject count, purely by chance, and would otherwise win.
+    #  2. Exclude columns that look like a *dimension* -- non-numeric with
+    #     cardinality in the same ~2..sqrt(n) band the second loop below
+    #     uses to call something a dimension. Without this, a low-cardinality
+    #     categorical column (e.g. a 5-value SEGMENT on a small long/tidy
+    #     table) can beat a real subject id on raw cardinality alone once the
+    #     id is *also* excluded by step 3 below for merely looking sequential
+    #     -- a subject id and a dimension are mutually exclusive roles, so a
+    #     column this obviously dimension-shaped should never even compete.
+    #  3. Among what's left, prefer columns that aren't a positional-index
+    #     artifact (med's unnamed pandas-index column) -- but only as a
+    #     soft preference, never a hard exclusion: a real subject id that
+    #     happens to be assigned sequentially (e.g. 1..n in a synthetic
+    #     dataset) must not be thrown out just for "looking like" one when
+    #     it's the only legitimate candidate available.
+    #  4. Rank what's left by cardinality -- valid whether the column
+    #     "repeats" (long/tidy: many option-rows per subject) or is fully
+    #     unique (wide: one row per subject) meaning it's a legitimate
+    #     subject-id shape, since ordinary dimension columns are bounded to
+    #     a much smaller cardinality (~sqrt(n)) by construction.
+    sqrt_n_probe = math.sqrt(n) if n else 0
+    dimension_like = {c for c in cardinalities
+                      if not pd.api.types.is_numeric_dtype(df[c]) and 2 <= cardinalities[c] <= max(sqrt_n_probe, 2)}
+    non_continuous = {c: card for c, card in cardinalities.items() if not _is_continuous_measurement(df[c])}
+    id_candidates = {c: card for c, card in non_continuous.items() if card > 1 and c not in dimension_like} or \
+        {c: card for c, card in cardinalities.items() if card > 1 and c not in dimension_like} or \
+        {c: card for c, card in non_continuous.items() if card > 1}
+    non_index = {c: card for c, card in id_candidates.items() if not _is_positional_index(df[c], n)}
+    ranked_pool = non_index or id_candidates
 
-    repeating_candidates = strong_id_like or id_like_repeaters or strong_any or repeaters
-    if repeating_candidates:
-        subject_id_col = max(repeating_candidates, key=repeating_candidates.get)
-        subject_id_confidence = 1.0 if repeating_candidates is strong_id_like else 0.7
-    else:
-        unique_candidates = [c for c, card in cardinalities.items()
-                              if card == n and not _is_positional_index(df[c], n)]
-        subject_id_col = unique_candidates[0] if unique_candidates else max(cardinalities, key=cardinalities.get)
-        subject_id_confidence = 0.6
+    subject_id_col = max(ranked_pool, key=ranked_pool.get)
+    subject_id_confidence = 1.0 if ranked_pool is non_index else 0.6
 
     guesses: dict[str, RoleGuess] = {subject_id_col: RoleGuess("subject_id", subject_id_confidence)}
 

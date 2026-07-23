@@ -1,0 +1,35 @@
+[
+  {
+    "id": "novel_single_dim",
+    "raw_type": "campaign_spend_share_cap",
+    "channel": "SMS",
+    "product": null,
+    "min": 0.0,
+    "max": 0.3,
+    "expected_measure": "cost",
+    "expected_column_dimension_map": {"channel": "channel"},
+    "expected_per_subject": false
+  },
+  {
+    "id": "novel_column_remap",
+    "raw_type": "regional_push_limit",
+    "channel": "OCRM",
+    "product": "IFL_AA",
+    "min": null,
+    "max": 500.0,
+    "expected_measure": "count",
+    "expected_column_dimension_map": {"channel": "channel", "product": "segment"},
+    "expected_per_subject": false
+  },
+  {
+    "id": "novel_per_subject",
+    "raw_type": "daily_contact_cap",
+    "channel": "MOBILE",
+    "product": null,
+    "min": null,
+    "max": 1.0,
+    "expected_measure": "count",
+    "expected_column_dimension_map": {"channel": "channel"},
+    "expected_per_subject": true
+  }
+]

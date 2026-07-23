@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-from offer_opt.schema import ConstraintSet
-from offer_opt.scope import ScopeIndex
+from offer_opt.schema import ConstraintSet, DimensionTree
+from offer_opt.scope import SCOPE_DIMS, ScopeIndex
 
 EPS = 1e-6
 
@@ -57,15 +57,21 @@ def _usage(offer_table: pd.DataFrame, mask: np.ndarray, measure: str) -> np.ndar
     raise ValueError(f"unknown measure {measure!r}")
 
 
-def verify(offer_table: pd.DataFrame, constraint_set: ConstraintSet,
-           selection: np.ndarray, eps: float = EPS) -> VerificationReport:
+def verify(offer_table: pd.DataFrame, constraint_set: ConstraintSet, selection: np.ndarray,
+           eps: float = EPS, trees: dict[str, DimensionTree] | None = None,
+           dims: tuple[str, ...] | None = None) -> VerificationReport:
+    """`trees`/`dims` are optional and default to `None`/`SCOPE_DIMS` exactly
+    as before -- every existing call site (none of which pass them) keeps
+    verifying against flat/trivial-tree scopes unchanged. A caller that
+    discovered a real dimension hierarchy (`pipeline.py::run_dataset()`)
+    passes both through so scope matching is ancestor-aware here too."""
     sel = np.asarray(selection, dtype="float64")
     if sel.shape[0] != len(offer_table):
         raise ValueError(f"selection length {sel.shape[0]} != offer_table length {len(offer_table)}")
 
     violations: list[Violation] = []
     client_ids = offer_table["client_id"].to_numpy()
-    scope_index = ScopeIndex(offer_table)
+    scope_index = ScopeIndex(offer_table, trees=trees, dims=dims or SCOPE_DIMS)
 
     for c in constraint_set.constraints:
         mask = scope_index.mask(c.scope)

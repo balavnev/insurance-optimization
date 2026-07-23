@@ -13,8 +13,8 @@ import pandas as pd
 import torch
 
 from offer_opt.device import dtype_for
-from offer_opt.schema import ConstraintSet
-from offer_opt.scope import ScopeIndex
+from offer_opt.schema import ConstraintSet, DimensionTree
+from offer_opt.scope import SCOPE_DIMS, ScopeIndex
 from offer_opt.solver.dual import build_global_states, compute_penalty, update_multipliers
 from offer_opt.solver.local import local_select
 from offer_opt.solver.repair import repair
@@ -32,7 +32,16 @@ class SolveResult:
 
 def solve(offer_table: pd.DataFrame, constraint_set: ConstraintSet, device: torch.device,
           max_iters: int = 1200, step0: float = 3.0, tol: float = 1e-3,
-          stable_patience: int = 5, plateau_patience: int = 40, repair_every: int = 10) -> SolveResult:
+          stable_patience: int = 5, plateau_patience: int = 40, repair_every: int = 10,
+          trees: dict[str, DimensionTree] | None = None,
+          dims: tuple[str, ...] | None = None) -> SolveResult:
+    """`trees`/`dims` are optional and default to `None`/`SCOPE_DIMS` exactly
+    as before -- every existing call site (none of which pass them) keeps
+    solving against flat/trivial-tree scopes unchanged. A caller that
+    discovered a real dimension hierarchy (`pipeline.py::run_dataset()`)
+    passes both through so the one internal `ScopeIndex` this function
+    builds (and every scope mask `dual.py`/`local.py`/`repair.py` compute
+    from it) becomes ancestor-aware too -- no other solver file changes."""
     n = len(offer_table)
     if "client_idx" not in offer_table.columns:
         raise ValueError("offer_table must be pre-encoded via features.encode_dims()")
@@ -44,7 +53,7 @@ def solve(offer_table: pd.DataFrame, constraint_set: ConstraintSet, device: torc
     base_ev = torch.from_numpy(base_ev_np.copy()).to(device=device, dtype=dtype)
     cost = torch.from_numpy(offer_table["cost"].to_numpy().copy()).to(device=device, dtype=dtype)
 
-    scope_index = ScopeIndex(offer_table)
+    scope_index = ScopeIndex(offer_table, trees=trees, dims=dims or SCOPE_DIMS)
     local_constraints = constraint_set.local()
     global_constraints = constraint_set.global_()
     global_states = build_global_states(global_constraints, cost, scope_index, device)

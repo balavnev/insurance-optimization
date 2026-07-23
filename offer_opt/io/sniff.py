@@ -84,12 +84,21 @@ def read_sniffed(path: str | Path, dialect: SniffedDialect | None = None, **kwar
 def detect_shape(df: pd.DataFrame, subject_id_column: str) -> str:
     """"wide" (one row per subject, dimensions embedded in column names --
     this repo's low case) vs "long" (multiple option-rows per subject,
-    dimensions are their own columns -- med/hard). A subject that never
-    repeats and a table where every row is a distinct subject is the
-    structural signature of "wide"."""
+    dimensions are their own columns -- med/hard).
+
+    "subject_id never repeats" alone is NOT sufficient to call a table
+    wide/pivoted: a long/tidy table where every subject simply happens to
+    have exactly one candidate option (a valid, if degenerate, business
+    shape) looks identical under that test alone, but has ordinary
+    dimension columns of its own and no PREMIUM_X_Y-style column names to
+    reshape. The real signature of "wide" is metric-name column clusters
+    actually being discoverable (`discover_metric_clusters`) -- require
+    both."""
     n = len(df)
     n_unique = df[subject_id_column].nunique(dropna=False)
-    return "wide" if n_unique == n else "long"
+    if n_unique != n:
+        return "long"
+    return "wide" if discover_metric_clusters(list(df.columns)) else "long"
 
 
 _METRIC_CLUSTER_RE = re.compile(r"^([A-Za-z]+)_(.+)$")
@@ -160,11 +169,18 @@ def reshape_wide_to_long(wide: pd.DataFrame, subject_id_column: str) -> pd.DataF
         combos = keys if combos is None else combos & keys
     combos = combos or set()
 
+    # Preserve *source column order*, not an alphabetical sort: a vendor's
+    # own reference/output format can encode a selection positionally (this
+    # repo's low case: sample_out_low.csv's Offer column is 1..4 by which
+    # source column a combo came from, not by product/channel name) -- the
+    # first non-anchor metric's dict already preserves that order, since
+    # discover_metric_clusters built it by iterating wide.columns in order.
+    ordered_keys = list(parsed[non_anchor_metrics[0]].keys())
+    combos_ordered = [k for k in ordered_keys if k in combos]
+
     has_residual = any(residual is not None for residual, _ in combos)
     frames = []
-    for offer_idx, (residual, anchor) in enumerate(
-        sorted(combos, key=lambda k: (str(k[0]), k[1])), start=1
-    ):
+    for offer_idx, (residual, anchor) in enumerate(combos_ordered, start=1):
         data: dict[str, object] = {"subject_id": wide[subject_id_column], "dim_anchor": anchor}
         if has_residual:
             data["dim_residual"] = residual
@@ -178,3 +194,37 @@ def reshape_wide_to_long(wide: pd.DataFrame, subject_id_column: str) -> pd.DataF
 
     long_df = pd.concat(frames, ignore_index=True)
     return long_df.sort_values(["subject_id", "_offer_slot"]).reset_index(drop=True)
+
+
+def parse_key_value_constraints(path: str | Path, anchor_values: set[str], residual_values: set[str],
+                                  raw_type: str = "offers_per_product"):
+    """Generic version of reshape_low.py's KEY=VALUE constraint parsing:
+    `<PREFIX>_<residual>_<anchor>=<max>` lines (e.g. "CNT_OSG_SMS=10000"),
+    reusing the anchor/residual vocabularies already discovered while
+    reshaping the wide offers table (`reshape_wide_to_long`) rather than
+    rediscovering them from the constraint file itself.
+
+    The file's own type prefix (e.g. "CNT") is discarded rather than
+    per-line classified: a KEY=VALUE constraints file is, by construction,
+    always a per-(residual, anchor) count cap -- that's a property of the
+    file *shape* (the same spirit as this module's docstring: the pattern is
+    generalized, not the literal words), not a per-row classification
+    problem, so it's translated directly to `raw_type` and flows through
+    `constraints.resolve_one` exactly like any other "offers_per_product"
+    row -- no new code needed there."""
+    from offer_opt.schema import RawConstraintRow
+
+    text = Path(path).read_text(encoding="utf-8-sig")
+    rows = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        key, _, value = line.partition("=")
+        residual_part, anchor = _split_suffix(key, anchor_values)
+        product = None
+        if residual_part is not None and residual_values:
+            _, product = _split_suffix(residual_part, residual_values)
+        rows.append(RawConstraintRow(raw_type=raw_type, channel=anchor, product=product,
+                                       min=None, max=float(value)))
+    return rows

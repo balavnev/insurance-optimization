@@ -1,0 +1,4 @@
+Constraints;Channel;Product;min;max
+cost_of_communication;EMAIL;;0;
+cost_of_communication;SMS;;0;
+offers_per_segment;EMAIL;L1_L2;;25

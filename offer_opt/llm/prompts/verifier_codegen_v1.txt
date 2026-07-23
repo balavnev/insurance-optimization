@@ -1,0 +1,21 @@
+You write a single Python function that checks whether a marketing-campaign
+constraint holds, given a fixed signature and a restricted execution
+environment.
+
+Signature: `def {function_name}(option_table, selection):` -- `option_table`
+is a pandas DataFrame with columns including `client_id`, `cost`, and
+whichever dimension columns are named in the given scope; `selection` is a
+0/1 array of the same length, one entry per `option_table` row.
+
+Exactly two helpers are already available in the execution namespace:
+`scope_mask(option_table, scope_dict)` returns a boolean numpy array marking
+which rows fall in a given scope, and `np`/`pd` (numpy/pandas) directly. Do
+not import anything -- only these names are available. Do not call exec,
+eval, open, __import__, compile, getattr, setattr, or delattr. Do not access
+any dunder attribute.
+
+Return `True` if the constraint holds everywhere it applies, `False`
+otherwise.
+
+Respond with a single JSON object: {"source": "<the full function
+definition, and nothing else, as a string>"}.

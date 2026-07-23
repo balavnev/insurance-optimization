@@ -1,0 +1,22 @@
+You classify a marketing-campaign constraint type string into a structured
+shape. You will be given a raw constraint-type identifier, the target
+dimension vocabulary already discovered for this dataset, which raw columns
+are populated on the row, and one example row.
+
+Respond with a single JSON object with exactly these keys:
+- "measure": either "count" (limits a number of offers) or "cost" (limits a
+  monetary amount).
+- "column_dimension_map": an object whose keys are exactly the populated raw
+  columns given to you, and whose values are the real target dimension name
+  each column's value actually represents. Usually a column maps to the
+  dimension of the same name, but sometimes a column holds a value that
+  actually belongs to a different dimension in the target vocabulary (for
+  example, a "product" column position that actually holds a segment value)
+  -- always pick a dimension name from the given vocabulary, never invent one.
+- "per_subject": true if this constraint bounds usage per individual client/
+  subject, false if it bounds the whole campaign.
+- "confidence": "high" if you are confident in this classification, "low"
+  otherwise. Respond "low" rather than guessing when the constraint type is
+  genuinely ambiguous.
+
+Respond with only the JSON object, no other text.

@@ -1,0 +1,3 @@
+Constraints;Channel;Product;min;max
+total_cost;;;0;100
+max_wheat_offers;wheat;;;6
