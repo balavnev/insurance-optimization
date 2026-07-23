@@ -1,9 +1,24 @@
 """Convenience wrapper tying I/O, the solver, and the verifier together --
-what the notebook and CLI actually call."""
+what the notebook and CLI actually call.
+
+`run_dataset()`'s discovery/codegen dependencies (`offer_opt.discovery.*`,
+`offer_opt.codegen.*`) are imported LAZILY, inside its own function body,
+never at module scope here -- exactly like `constraints.py`'s LLM-fallback
+branch (Section 5/10 of the generalization plan). This module is doubly
+exposed to the isolation requirement: `offer_opt/__init__.py` imports
+`pipeline.py` eagerly at *package* import time, so a module-scope import
+here would drag `discovery`/`codegen` into `sys.modules` on `import
+offer_opt.metrics` alone -- not just on `import offer_opt.pipeline` -- since
+importing any submodule of a package always runs the package's `__init__.py`
+first. `GeneratedCheck`/`ConstraintConflict`/`DimensionTree` below appear only
+in type annotations, which `from __future__ import annotations` makes lazy
+strings never evaluated at import time, so referencing them in
+`DatasetResult`'s field types costs nothing here."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import torch
@@ -11,11 +26,13 @@ import torch
 from offer_opt import features as _features
 from offer_opt import metrics as _metrics
 from offer_opt import verify as _verify
-from offer_opt.codegen.generate import GeneratedCheck, cross_check, generate_all
-from offer_opt.discovery.conflict import ConstraintConflict, find_conflicts
-from offer_opt.discovery.hierarchy import build_tree
-from offer_opt.schema import ConstraintSet, DimensionTree
+from offer_opt.schema import ConstraintSet
 from offer_opt.solver.lagrangian import SolveResult, solve
+
+if TYPE_CHECKING:
+    from offer_opt.codegen.generate import GeneratedCheck
+    from offer_opt.discovery.conflict import ConstraintConflict
+    from offer_opt.schema import DimensionTree
 
 
 @dataclass
@@ -75,6 +92,10 @@ def run_dataset(offers_path, constraints_path, device: torch.device,
     FULL original constraint set, so an ancestor bound traded away this way
     shows up there as an honestly-reported violation, explained by
     `conflicts`, not silently hidden."""
+    from offer_opt.codegen.generate import cross_check, generate_all
+    from offer_opt.discovery.conflict import find_conflicts
+    from offer_opt.discovery.hierarchy import build_tree
+
     offer_table, constraint_set, dim_names = _features.load_from_paths(
         offers_path, constraints_path, llm_client=llm_client)
     offer_table, _n_clients = _features.encode_dims(offer_table)
