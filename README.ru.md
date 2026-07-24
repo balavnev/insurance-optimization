@@ -37,6 +37,32 @@ result = run_case("hard", get_device(prefer_gpu=True))
 print(result.verification)          # PASS/FAIL, суммарный EV, нарушения (если есть)
 ```
 
+## Запуск из командной строки
+
+Писать код на Python для быстрой проверки не обязательно — `offer_opt`
+можно запускать прямо как модуль:
+
+```bash
+# запустить только парсер (разрешение схемы + разбор ограничений), без решения --
+# выводит каждый разрешённый ConstraintSpec/ParameterSpec
+python -m offer_opt --case low --parse-only
+
+# то же самое, на произвольном датасете
+python -m offer_opt --offers path/to/offers.csv --constraints path/to/constraints.csv --parse-only
+
+# полный конвейер (разбор + решение + проверка) на известном кейсе
+python -m offer_opt --case hard --max-iters 400 --repair-every 20
+
+# полный конвейер на произвольном датасете, с настоящим LLM-эндпоинтом
+python -m offer_opt --offers offers.csv --constraints constraints.csv \
+    --llm-url http://localhost:11434 --max-iters 300
+```
+
+`--llm-url`/`--llm-key` — необязательные переопределения для
+`$LLM_BASE_URL`/`$LLM_API_KEY` (см. «Использование настоящей LLM» ниже) —
+без них конвейер работает полностью символьно и громко падает на всём, что
+не может уверенно разрешить сам. Полный список флагов: `python -m offer_opt --help`.
+
 ## Запуск тестов
 
 - `pytest` — все тесты сразу (быстрые проверки + полные, "с полным бюджетом
@@ -161,6 +187,7 @@ offer_opt/                    сам пакет
   solver/                           сам оптимизатор (релаксация Лагранжа + локальный поиск + repair)
   verify.py                        эталонный модуль проверки ограничений
   pipeline.py                      run_case() / run_dataset() -- точки входа, описанные выше
+  __main__.py                      CLI `python -m offer_opt`, обёртка над точками входа выше
   metrics.py                       инструмент бенчмарка + восстановление эталонных решений
 tests/                        ~150 тестов; fixtures/ содержит синтетические датасеты для проверки обобщения
 case_1_low/, case_2_med/, case_3_hard/   3 примера кейсов от заказчика

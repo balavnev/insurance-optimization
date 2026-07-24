@@ -29,3 +29,7 @@ htmlcov/
 case_1_low/
 case_2_med/
 case_3_hard/
+
+# Local tool state/caches (not project source)
+.claude/
+.ua/

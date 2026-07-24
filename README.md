@@ -34,6 +34,32 @@ result = run_case("hard", get_device(prefer_gpu=True))
 print(result.verification)          # PASS/FAIL, total EV, any violations
 ```
 
+## Command-line usage
+
+No Python code needed for a quick run — `offer_opt` is directly runnable as
+a module:
+
+```bash
+# run the parser alone (schema resolution + constraint parsing), no solving --
+# prints every resolved ConstraintSpec/ParameterSpec
+python -m offer_opt --case low --parse-only
+
+# same, on an arbitrary dataset
+python -m offer_opt --offers path/to/offers.csv --constraints path/to/constraints.csv --parse-only
+
+# full pipeline (parse + solve + verify) on a known case
+python -m offer_opt --case hard --max-iters 400 --repair-every 20
+
+# full pipeline on an arbitrary dataset, with a real LLM endpoint
+python -m offer_opt --offers offers.csv --constraints constraints.csv \
+    --llm-url http://localhost:11434 --max-iters 300
+```
+
+`--llm-url`/`--llm-key` are optional overrides for `$LLM_BASE_URL`/`$LLM_API_KEY`
+(see "Using a real LLM" below) — without either, it runs fully symbolic and
+raises loudly on anything it can't confidently resolve on its own. Run
+`python -m offer_opt --help` for the full flag list.
+
 ## Running the test suite
 
 - `pytest` — everything (fast checks + the full-iteration-budget solution-quality
@@ -150,6 +176,7 @@ offer_opt/                    the actual package
   solver/                           the optimizer (Lagrangian relaxation + local search + repair)
   verify.py                        the ground-truth constraint checker
   pipeline.py                      run_case() / run_dataset() -- the entrypoints above
+  __main__.py                      `python -m offer_opt` CLI wrapping the entrypoints above
   metrics.py                       benchmark harness + reference-solution reconstruction
 tests/                        ~150 tests; fixtures/ holds the synthetic generalization datasets
 case_1_low/, case_2_med/, case_3_hard/   the 3 vendor-provided example cases
